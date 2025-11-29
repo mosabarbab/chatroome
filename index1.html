@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غرفة الدردشة</title>
+    <!-- إضافة Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- إضافة Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <style>
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 #f7fafc;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f7fafc;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #cbd5e0;
+            border-radius: 3px;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans min-h-screen">
+    
+    <!-- شاشة التهيئة -->
+    <div id="setupScreen" class="flex flex-col items-center justify-center min-h-screen p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-blue-600 mb-2">إعداد غرفة الدردشة</h1>
+                <p class="text-gray-600">يجب إعداد Firebase أولاً لتشغيل التطبيق</p>
+            </div>
+            
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+                <h2 class="text-lg font-semibold text-yellow-800 mb-3">🚀 خطوات الإعداد:</h2>
+                <ol class="list-decimal list-inside space-y-2 text-yellow-700 text-sm">
+                    <li>اذهب إلى <a href="https://console.firebase.google.com/" target="_blank" class="underline">Firebase Console</a></li>
+                    <li>أنشئ مشروع جديد أو اختر مشروع موجود</li>
+                    <li>من Project Settings → General → انسخ معلومات التهيئة</li>
+                    <li>الصق المعلومات في الحقول أدناه</li>
+                    <li>تفعيل Authentication و Firestore من القائمة الجانبية</li>
+                </ol>
+            </div>
+
+            <form id="firebaseConfigForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">apiKey</label>
+                        <input type="text" id="configApiKey" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">authDomain</label>
+                        <input type="text" id="configAuthDomain" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">projectId</label>
+                        <input type="text" id="configProjectId" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">storageBucket</label>
+                        <input type="text" id="configStorageBucket" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">messagingSenderId</label>
+                        <input type="text" id="configMessagingSenderId" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">appId</label>
+                        <input type="text" id="configAppId" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition duration-200 font-semibold">
+                    حفظ الإعدادات وتشغيل التطبيق
+                </button>
+            </form>
+
+            <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 class="font-semibold text-blue-800 mb-2">💡 ملاحظة:</h3>
+                <p class="text-blue-700 text-sm">سيتم حفظ الإعدادات في متصفحك فقط. للتطبيق الحقيقي، يجب وضع هذه المعلومات في بيئة آمنة.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة تسجيل الدخول -->
+    <div id="loginScreen" class="hidden flex-col items-center justify-center min-h-screen p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold text-blue-600">غرفة الدردشة</h1>
+                <p class="text-gray-600 mt-2">سجل الدخول للبدء بالمحادثة</p>
+            </div>
+            
+            <div id="loginError" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4"></div>
+            
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
+                    <input type="email" id="email" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
+                    <input type="password" id="password" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
+                    تسجيل الدخول
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600">ليس لديك حساب؟ 
+                    <button id="showRegister" class="text-blue-600 hover:underline font-medium">إنشاء حساب</button>
+                </p>
+            </div>
+
+            <div class="mt-4 text-center">
+                <button id="backToSetup" class="text-gray-500 hover:text-gray-700 text-sm">العودة لإعدادات Firebase</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة التسجيل -->
+    <div id="registerScreen" class="hidden flex-col items-center justify-center min-h-screen p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold text-blue-600">إنشاء حساب جديد</h1>
+                <p class="text-gray-600 mt-2">انضم إلى غرفة الدردشة</p>
+            </div>
+            
+            <div id="registerError" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4"></div>
+            
+            <form id="registerForm" class="space-y-4">
+                <div>
+                    <label for="registerName" class="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+                    <input type="text" id="registerName" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <div>
+                    <label for="registerEmail" class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
+                    <input type="email" id="registerEmail" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <div>
+                    <label for="registerPassword" class="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
+                    <input type="password" id="registerPassword" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition duration-200 font-semibold">
+                    إنشاء حساب
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600">لديك حساب بالفعل؟ 
+                    <button id="showLogin" class="text-blue-600 hover:underline font-medium">تسجيل الدخول</button>
+                </p>
+            </div>
+
+            <div class="mt-4 text-center">
+                <button id="backToSetupFromRegister" class="text-gray-500 hover:text-gray-700 text-sm">العودة لإعدادات Firebase</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة الدردشة الرئيسية -->
+    <div id="chatScreen" class="hidden h-screen flex flex-col">
+        <!-- شريط العنوان -->
+        <header class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg">
+            <div class="container mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <h1 class="text-xl font-bold">غرفة الدردشة</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="userName" class="font-medium bg-blue-500 px-3 py-1 rounded-full"></span>
+                    <button id="logoutBtn" class="bg-white text-blue-600 hover:bg-gray-100 px-4 py-2 rounded-lg transition duration-200 font-medium">
+                        تسجيل الخروج
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- منطقة المحادثة -->
+        <main class="flex-1 container mx-auto p-4 flex flex-col">
+            <div id="messagesContainer" class="flex-1 bg-white rounded-2xl shadow-lg p-6 mb-4 overflow-y-auto scrollbar-thin">
+                <div id="welcomeMessage" class="text-center text-gray-500 py-8">
+                    <p>مرحباً! ابدأ المحادثة بإرسال رسالة...</p>
+                </div>
+                <!-- الرسائل ستظهر هنا -->
+            </div>
+
+            <!-- نموذج إرسال الرسالة -->
+            <div class="bg-white rounded-2xl shadow-lg p-4">
+                <form id="messageForm" class="flex space-x-3">
+                    <input type="text" id="messageInput" placeholder="اكتب رسالتك هنا..." 
+                           class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
+                        إرسال
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // عناصر DOM
+        const setupScreen = document.getElementById('setupScreen');
+        const loginScreen = document.getElementById('loginScreen');
+        const registerScreen = document.getElementById('registerScreen');
+        const chatScreen = document.getElementById('chatScreen');
+        const firebaseConfigForm = document.getElementById('firebaseConfigForm');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const messageForm = document.getElementById('messageForm');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const messageInput = document.getElementById('messageInput');
+        const userNameElement = document.getElementById('userName');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const showRegister = document.getElementById('showRegister');
+        const showLogin = document.getElementById('showLogin');
+        const backToSetup = document.getElementById('backToSetup');
+        const backToSetupFromRegister = document.getElementById('backToSetupFromRegister');
+        const loginError = document.getElementById('loginError');
+        const registerError = document.getElementById('registerError');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+
+        let auth, db;
+
+        // تحميل الإعدادات المحفوظة
+        function loadSavedConfig() {
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                document.getElementById('configApiKey').value = config.apiKey || '';
+                document.getElementById('configAuthDomain').value = config.authDomain || '';
+                document.getElementById('configProjectId').value = config.projectId || '';
+                document.getElementById('configStorageBucket').value = config.storageBucket || '';
+                document.getElementById('configMessagingSenderId').value = config.messagingSenderId || '';
+                document.getElementById('configAppId').value = config.appId || '';
+            }
+        }
+
+        // حفظ إعدادات Firebase
+        firebaseConfigForm.addEventListener('submit', e => {
+            e.preventDefault();
+            
+            const firebaseConfig = {
+                apiKey: document.getElementById('configApiKey').value,
+                authDomain: document.getElementById('configAuthDomain').value,
+                projectId: document.getElementById('configProjectId').value,
+                storageBucket: document.getElementById('configStorageBucket').value,
+                messagingSenderId: document.getElementById('configMessagingSenderId').value,
+                appId: document.getElementById('configAppId').value
+            };
+
+            // حفظ الإعدادات محلياً
+            localStorage.setItem('firebaseConfig', JSON.stringify(firebaseConfig));
+
+            try {
+                // محاولة تهيئة Firebase
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+
+                // اختبار الاتصال
+                auth.useDeviceLanguage();
+                
+                // إخفاء شاشة الإعداد وعرض شاشة تسجيل الدخول
+                setupScreen.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                
+                console.log('✅ Firebase initialized successfully!');
+            } catch (error) {
+                alert('❌ خطأ في تهيئة Firebase: ' + error.message);
+                console.error('Firebase initialization error:', error);
+            }
+        });
+
+        // التحقق من حالة المصادقة
+        function setupAuthListener() {
+            if (!auth) return;
+            
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    showChatScreen(user);
+                } else {
+                    showLoginScreen();
+                }
+            });
+        }
+
+        // تسجيل الدخول
+        loginForm.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!auth) {
+                showError(loginError, 'Firebase غير مهيء. الرجاء التحقق من الإعدادات.');
+                return;
+            }
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    hideError(loginError);
+                })
+                .catch(error => {
+                    showError(loginError, getAuthErrorMessage(error));
+                });
+        });
+
+        // إنشاء حساب جديد
+        registerForm.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!auth || !db) {
+                showError(registerError, 'Firebase غير مهيء. الرجاء التحقق من الإعدادات.');
+                return;
+            }
+
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    const user = userCredential.user;
+                    
+                    // تحديث ملف تعريف المستخدم
+                    return user.updateProfile({
+                        displayName: name
+                    }).then(() => {
+                        // حفظ معلومات إضافية في Firestore
+                        return db.collection('users').doc(user.uid).set({
+                            name: name,
+                            email: email,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                })
+                .then(() => {
+                    hideError(registerError);
+                })
+                .catch(error => {
+                    showError(registerError, getAuthErrorMessage(error));
+                });
+        });
+
+        // تسجيل الخروج
+        logoutBtn.addEventListener('click', () => {
+            if (auth) {
+                auth.signOut();
+            }
+        });
+
+        // إرسال رسالة
+        messageForm.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!auth || !db) return;
+
+            const message = messageInput.value.trim();
+            
+            if (message) {
+                const user = auth.currentUser;
+                
+                db.collection('messages').add({
+                    text: message,
+                    userId: user.uid,
+                    userName: user.displayName || 'مستخدم',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                })
+                .then(() => {
+                    messageInput.value = '';
+                    if (welcomeMessage) {
+                        welcomeMessage.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('خطأ في إرسال الرسالة:', error);
+                });
+            }
+        });
+
+        // عرض الرسائل في الوقت الحقيقي
+        function setupMessagesListener() {
+            if (!db) return;
+            
+            db.collection('messages')
+                .orderBy('timestamp', 'asc')
+                .onSnapshot(snapshot => {
+                    if (welcomeMessage && snapshot.size > 0) {
+                        welcomeMessage.style.display = 'none';
+                    }
+                    
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const message = change.doc.data();
+                            displayMessage(message);
+                        }
+                    });
+                    
+                    // التمرير إلى الأسفل
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }, error => {
+                    console.error('خطأ في استماع الرسائل:', error);
+                });
+        }
+
+        // عرض الرسالة
+        function displayMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('mb-4', 'p-4', 'rounded-2xl', 'max-w-xs', 'fade-in');
+            
+            const user = auth.currentUser;
+            const isCurrentUser = user && message.userId === user.uid;
+            
+            if (isCurrentUser) {
+                messageElement.classList.add('bg-blue-500', 'text-white', 'ml-auto');
+                messageElement.innerHTML = `
+                    <div class="font-semibold text-sm opacity-90">أنت</div>
+                    <div class="mt-2">${message.text}</div>
+                    <div class="text-xs mt-2 opacity-75">${formatTime(message.timestamp)}</div>
+                `;
+            } else {
+                messageElement.classList.add('bg-gray-100', 'mr-auto');
+                messageElement.innerHTML = `
+                    <div class="font-semibold text-sm text-blue-600">${message.userName}</div>
+                    <div class="mt-2 text-gray-800">${message.text}</div>
+                    <div class="text-xs mt-2 text-gray-500">${formatTime(message.timestamp)}</div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageElement);
+        }
+
+        // تنسيق الوقت
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = timestamp.toDate();
+            return date.toLocaleTimeString('ar-SA', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        // إدارة الشاشات
+        function showChatScreen(user) {
+            setupScreen.classList.add('hidden');
+            loginScreen.classList.add('hidden');
+            registerScreen.classList.add('hidden');
+            chatScreen.classList.remove('hidden');
+            
+            userNameElement.textContent = user.displayName || user.email;
+            setupMessagesListener();
+        }
+
+        function showLoginScreen() {
+            setupScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            registerScreen.classList.add('hidden');
+            chatScreen.classList.add('hidden');
+        }
+
+        function showRegisterScreen() {
+            setupScreen.classList.add('hidden');
+            loginScreen.classList.add('hidden');
+            registerScreen.classList.remove('hidden');
+            chatScreen.classList.add('hidden');
+        }
+
+        function showSetupScreen() {
+            setupScreen.classList.remove('hidden');
+            loginScreen.classList.add('hidden');
+            registerScreen.classList.add('hidden');
+            chatScreen.classList.add('hidden');
+        }
+
+        // إدارة الأخطاء
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+
+        function hideError(element) {
+            element.classList.add('hidden');
+        }
+
+        function getAuthErrorMessage(error) {
+            switch (error.code) {
+                case 'auth/invalid-email':
+                    return 'البريد الإلكتروني غير صحيح';
+                case 'auth/user-disabled':
+                    return 'هذا الحساب معطل';
+                case 'auth/user-not-found':
+                    return 'لم يتم العثور على حساب بهذا البريد';
+                case 'auth/wrong-password':
+                    return 'كلمة المرور غير صحيحة';
+                case 'auth/email-already-in-use':
+                    return 'هذا البريد الإلكتروني مستخدم بالفعل';
+                case 'auth/weak-password':
+                    return 'كلمة المرور ضعيفة، يجب أن تكون 6 أحرف على الأقل';
+                default:
+                    return error.message;
+            }
+        }
+
+        // أحداث التنقل
+        showRegister.addEventListener('click', showRegisterScreen);
+        showLogin.addEventListener('click', showLoginScreen);
+        backToSetup.addEventListener('click', showSetupScreen);
+        backToSetupFromRegister.addEventListener('click', showSetupScreen);
+
+        // التهيئة الأولية
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedConfig();
+            
+            // التحقق إذا كان هناك إعدادات محفوظة
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            if (savedConfig) {
+                try {
+                    const config = JSON.parse(savedConfig);
+                    firebase.initializeApp(config);
+                    auth = firebase.auth();
+                    db = firebase.firestore();
+                    setupAuthListener();
+                    showLoginScreen();
+                } catch (error) {
+                    console.log('❌ إعدادات Firebase المحفوظة غير صالحة');
+                    showSetupScreen();
+                }
+            } else {
+                showSetupScreen();
+            }
+        });
+    </script>
+</body>
+</html>
